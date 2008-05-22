@@ -1,5 +1,7 @@
 package Test::MockTerm;
 
+our $VERSION = '0.01';
+
 #
 # This module allows testing of interactive programs that also poke at
 # terminal settings. It was specifically designed for testing IO::Prompt, but
@@ -8,7 +10,7 @@ package Test::MockTerm;
 # IO::Prompt uses the following methods to communicate with the terminal:
 #   - opens /dev/tty for reading        open $IN, "</dev/tty"
 #   - opens /dev/tty for writing        open $OUT, ">/dev/tty"
-#   - tests $IN to see if its           -t $IN
+#   - tests to see if its a terminal    -t $IN
 #   - changes terminal modes            use Term::ReadKey
 #                                       ReadMode 'xyz', $IN
 #   - gets current term control chars   GetControlChars $IN
