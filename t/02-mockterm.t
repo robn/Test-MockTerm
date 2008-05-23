@@ -54,7 +54,7 @@ close $in;
 close $out;
 undef $term;
 
-$term = Test::MockTerm->new("/dev/term", "-");
+$term = Test::MockTerm->new($dev, $dev2);
 
 open $in, "<", $dev;
 open $in2, "<", $dev2;
