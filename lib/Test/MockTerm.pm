@@ -52,7 +52,6 @@ our $VERSION = '0.01';
 use warnings;
 use strict;
 
-use IO::Pty;
 use Scalar::Util qw(refaddr weaken);
 use Carp;
 
@@ -117,24 +116,23 @@ sub import {
             croak "no support for mode '$mode' for $file";
         }
 
-        # we're going to hand the slave back to them
-        my $tty = $devices{$file}->{pty}->slave;
-        $tty->blocking(0);
+        # give them back the "slave"
+        my $handle = $devices{$file}->{slave};
 
         # they passed a plain globby symboly thing
         if (defined $_[0]) {
 
             # see above
             use Symbol ();
-            my $handle = Symbol::qualify($_[0], (caller)[0]);
+            my $glob = Symbol::qualify($_[0], (caller)[0]);
 
             no strict "refs";
-            *{$handle} = $tty;
+            *{$glob} = $handle;
         }
 
         # otherwise its a just a scalar, and we can trample it
         else {
-            $_[0] = $tty;
+            $_[0] = $handle;
         }
 
         return 1;
@@ -162,16 +160,19 @@ sub new {
         croak "two or more of the specified files we're previously opened independently, and can't be grouped now" if $count > 1;
     }
 
-    my $pty = IO::Pty->new;
-    $pty->blocking(0);
+    my $buf = '';
 
-    my $self = bless \$pty, $class;
+    open my $master, "+<", \$buf;
+    open my $slave,  "+<", \$buf;
+
+    my $self = bless \$master, $class;
+
     my $device = {
-        pty  => $pty,
-        self => $self,
+        self  => $self,
+        slave => $slave,
     };
     weaken $device->{self};
-
+    
     $devices{$_} = $device for @files;
 
     return $self;
@@ -197,7 +198,8 @@ sub get {
 
 sub getline {
     my ($self) = @_;
-    my $line = $$self->getline;
+    my $handle = $$self;
+    my $line = <$handle>;
     return if not defined $line;
     $line =~ s/(?:\r\n|\n\r|\r)/\n/g;
     return $line;
