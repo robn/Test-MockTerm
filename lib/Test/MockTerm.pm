@@ -1,5 +1,7 @@
 package Test::MockTerm;
 
+use 5.008;
+
 our $VERSION = '0.01';
 
 #
