@@ -5,6 +5,8 @@ use 5.008;
 our $VERSION = '0.01';
 
 #
+# XXX this description is old, from when this was based on IO::Pty
+#
 # This module allows testing of interactive programs that also poke at
 # terminal settings. It was specifically designed for testing IO::Prompt, but
 # might be useful elsewhere.
