@@ -190,30 +190,6 @@ sub DESTROY {
     delete $devices{$_} for @{$$self->{files}};
 }
 
-# type something on the keyboard
-sub put {
-    my ($self, @stuff) = @_;
-    map { s/(?:\r\n|\n\r|\r)/\n/g } @stuff;
-    my $handle = $$self->{write_handle};
-    print {$$self->{write_handle}} @stuff;
-}
-
-# read from the screen
-sub get {
-    my ($self) = @_;
-    return $$self->{read_handle}->getc;
-}
-
-# read a whole line from the screen
-sub getline {
-    my ($self) = @_;
-    my $handle = $$self->{read_handle};
-    my $line = <$handle>;
-    return if not defined $line;
-    $line =~ s/(?:\r\n|\n\r|\r)/\n/g;
-    return $line;
-}
-
 
 # master is the keyboard/screen side
 package Test::MockTerm::Master;
@@ -240,6 +216,39 @@ sub TIEHANDLE {
     return $self;
 }
 
+# typing something
+sub PRINT {
+    my ($self, @stuff) = @_;
+
+    # normalise newlines
+    # XXX should I do this at all?
+    map { s/(?:\r\n|\n\r|\r)/\n/g } @stuff;
+
+    # put it onto the slave
+    print {$self->{device}->{slave}} @stuff;
+
+    # and back onto us
+    # XXX unless local echo disabled
+    $self->{buffer} .= $_ for @stuff;
+}
+
+# reading off the screen
+sub GETC {
+    my ($self) = @_;
+
+    return $self->{handle}->getc;
+}
+
+# read a whole line off the screen
+sub READLINE {
+    my ($self) = @_;
+    my $handle = $self->{handle};
+    my $line = <$handle>;
+    return if not defined $line;
+    $line =~ s/(?:\r\n|\n\r|\r)/\n/g;
+    return $line;
+}
+
 
 # slave is the process (ie /dev/tty) side
 package Test::MockTerm::Slave;
@@ -264,6 +273,27 @@ sub TIEHANDLE {
     }, $class;
 
     return $self;
+}
+
+# writing to the screen
+sub PRINT {
+    my ($self, @stuff) = @_;
+
+    # put it onto the master
+    print {$self->{device}->{master}} @stuff;
+}
+
+# reading from the keyboard
+sub GETC {
+    my ($self) = @_;
+
+    return $self->{handle}->getc;
+}
+
+sub READLINE {
+    my ($self) = @_;
+
+    return $self->{handle}->getline;
 }
 
 1;
