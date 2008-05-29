@@ -130,7 +130,6 @@ sub import {
         if (defined $_[0]) {
 
             # see above
-            use Symbol ();
             my $glob = Symbol::qualify($_[0], (caller)[0]);
 
             no strict "refs";
