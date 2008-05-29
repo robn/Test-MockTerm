@@ -117,16 +117,14 @@ sub import {
             }
         }
 
-        my $handle;
-        if ($mode eq "<") {
-            $handle = $devices{$file}->{read_handle};
-        }
-        elsif ($mode eq ">") {
-            $handle = $devices{$file}->{write_handle};
-        }
-        else {
+        # so we're handling this file. if they're trying to do something other
+        # than just read or write, then we're confused
+        if ($mode ne "<" and $mode ne ">") {
             croak "no support for mode '$mode' for $file";
         }
+
+        # send the slave back
+        my $handle = $devices{$file}->{slave};
 
         # they passed a plain globby symboly thing
         if (defined $_[0]) {
