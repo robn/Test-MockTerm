@@ -214,4 +214,46 @@ sub getline {
     return $line;
 }
 
+
+# master is the keyboard/screen side
+package Test::MockTerm::Master;
+
+use Tie::Handle;
+use base qw(Tie::Handle);
+
+sub TIEHANDLE {
+    my ($class, %args) = @_;
+
+    my $buffer = '';
+    open my $handle, "+<", \$buffer;
+
+    my $self = bless {
+        buffer => $buffer,
+        handle => $handle,
+    }, $class;
+
+    return $self;
+}
+
+
+# slave is the process (ie /dev/tty) side
+package Test::MockTerm::Slave;
+
+use Tie::Handle;
+use base qw(Tie::Handle);
+
+sub TIEHANDLE {
+    my ($class, %args) = @_;
+
+    my $buffer = '';
+    open my $handle, "+<", \$buffer;
+
+    my $self = bless {
+        buffer => $buffer,
+        handle => $handle,
+    }, $class;
+
+    return $self;
+}
+
 1;
