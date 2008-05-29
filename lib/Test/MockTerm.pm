@@ -56,8 +56,12 @@ our $VERSION = '0.01';
 use warnings;
 use strict;
 
+use Tie::Handle;
 use Scalar::Util qw(refaddr weaken);
+use Symbol ();
 use Carp;
+
+use base qw(Tie::Handle);
 
 my %devices;
 
@@ -97,7 +101,6 @@ sub import {
 
                 # since they're bouncing through us, open will get the caller
                 # wrong unless we qualify the handle name
-                use Symbol ();
                 my $handle = Symbol::qualify($_[0], (caller)[0]);
 
                 no strict "refs";
@@ -166,23 +169,23 @@ sub new {
         croak "two or more of the specified files we're previously opened independently, and can't be grouped now" if $count > 1;
     }
 
-    my $buffer = '';
-    open my $read_handle, "<", \$buffer;
-    open my $write_handle, ">", \$buffer;
-
     my $device = {
-        files        => \@files,
-        buffer       => $buffer,
-        read_handle  => $read_handle,
-        write_handle => $write_handle,
+        files  => \@files,
     };
 
-    my $self = bless \$device, $class;
-    $device->{self} = $self;
+    my $buffer = '';
+    open $device->{handle}, "+<", \$buffer;
+
+    $device->{handle} = Symbol::gensym();
+    tie *{$device->{handle}}, $class;
+
+    $device->{slave} = Test::MockTerm::Slave->new($device);
 
     $devices{$_} = $device for @files;
 
-    return $self;
+    my $self = bless \$device, $class;
+
+    return $device->{handle};
 }
 
 sub DESTROY {
@@ -190,30 +193,7 @@ sub DESTROY {
     delete $devices{$_} for @{$$self->{files}};
 }
 
-
-# master is the keyboard/screen side
-package Test::MockTerm::Master;
-
-use base qw(Tie::Handle);
-
-use Tie::Handle;
-use Carp;
-
 sub TIEHANDLE {
-    my ($class, $device) = @_;
-
-    croak "no device hashref provided" if not $device;
-
-    my $buffer = '';
-    open my $handle, "+<", \$buffer;
-
-    my $self = bless {
-        buffer => $buffer,
-        handle => $handle,
-        device => $device,
-    }, $class;
-
-    return $self;
 }
 
 # typing something
@@ -225,7 +205,7 @@ sub PRINT {
     map { s/(?:\r\n|\n\r|\r)/\n/g } @stuff;
 
     # put it onto the slave
-    print {$self->{device}->{slave}} @stuff;
+    print {$self->{slave}} @stuff;
 
     # and back onto us
     # XXX unless local echo disabled
@@ -254,14 +234,15 @@ sub READLINE {
 package Test::MockTerm::Slave;
 
 use Tie::Handle;
+use Scalar::Util qw(weaken);
 use Carp;
 
 use base qw(Tie::Handle);
 
 sub TIEHANDLE {
-    my ($class, $device) = @_;
+    my ($class, $master) = @_;
 
-    croak "no device hashref provided" if not $device;
+    croak "no master device hashref provided" if not $master;
 
     my $buffer = '';
     open my $handle, "+<", \$buffer;
@@ -269,8 +250,10 @@ sub TIEHANDLE {
     my $self = bless {
         buffer => $buffer,
         handle => $handle,
-        device => $device,
+        master => $master,
     }, $class;
+
+    weaken $self->{master};
 
     return $self;
 }
@@ -280,7 +263,7 @@ sub PRINT {
     my ($self, @stuff) = @_;
 
     # put it onto the master
-    print {$self->{device}->{master}} @stuff;
+    print {$self->{master}->{handle}} @stuff;
 }
 
 # reading from the keyboard
