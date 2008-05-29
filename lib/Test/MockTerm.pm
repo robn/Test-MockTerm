@@ -218,11 +218,15 @@ sub getline {
 # master is the keyboard/screen side
 package Test::MockTerm::Master;
 
-use Tie::Handle;
 use base qw(Tie::Handle);
 
+use Tie::Handle;
+use Carp;
+
 sub TIEHANDLE {
-    my ($class, %args) = @_;
+    my ($class, $device) = @_;
+
+    croak "no device hash provided" if not $device;
 
     my $buffer = '';
     open my $handle, "+<", \$buffer;
@@ -240,10 +244,14 @@ sub TIEHANDLE {
 package Test::MockTerm::Slave;
 
 use Tie::Handle;
+use Carp;
+
 use base qw(Tie::Handle);
 
 sub TIEHANDLE {
-    my ($class, %args) = @_;
+    my ($class, $device) = @_;
+
+    croak "no device hash provided" if not $device;
 
     my $buffer = '';
     open my $handle, "+<", \$buffer;
