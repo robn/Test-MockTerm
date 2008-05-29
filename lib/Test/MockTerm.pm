@@ -114,14 +114,16 @@ sub import {
             }
         }
 
-        # so we're handling this file. if they're trying to do something other
-        # than just read or write, then we're confused
-        if ($mode ne "<" and $mode ne ">") {
+        my $handle;
+        if ($mode eq "<") {
+            $handle = $devices{$file}->{read_handle};
+        }
+        elsif ($mode eq ">") {
+            $handle = $devices{$file}->{write_handle};
+        }
+        else {
             croak "no support for mode '$mode' for $file";
         }
-
-        # give them back the "slave"
-        my $handle = $devices{$file}->{slave};
 
         # they passed a plain globby symboly thing
         if (defined $_[0]) {
@@ -159,33 +161,24 @@ sub new {
         for my $file (@files) {
             $count++ if exists $devices{$file};
         }
-        return $devices{$files[0]}->{self} if $count == 1;
+        return $devices{$files[0]}->{self} if $count == @files;
 
         croak "two or more of the specified files we're previously opened independently, and can't be grouped now" if $count > 1;
     }
 
-    #
-    # the MASTER of a ptty-pair is where the user would normal sit, ie:
-    #   print $master == typing on the keyboard
-    #   <$master>     == reading from the screen
-    #
-    # the SLAVE is the process end. opening eg /dev/tty attaches you to the
-    # slave
-    #
+    my $buffer = '';
+    open my $read_handle, "<", \$buffer;
+    open my $write_handle, ">", \$buffer;
+
     my $device = {
-        master_buffer => '',    # keyboard/screen end
-        slave_buffer => '',     # process/computer end
+        files        => \@files,
+        buffer       => $buffer,
+        read_handle  => $read_handle,
+        write_handle => $write_handle,
     };
-
-    open my $master, "+<", \$device->{master_buffer};
-    open my $slave,  "+<", \$device->{slave_buffer};
-
-    $device->{master} = $master;
-    $device->{slave}  = $slave;
 
     my $self = bless \$device, $class;
     $device->{self} = $self;
-    weaken $device->{$self};
 
     $devices{$_} = $device for @files;
 
@@ -194,43 +187,27 @@ sub new {
 
 sub DESTROY {
     my ($self) = @_;
-    for my $file (keys %devices) {
-        delete $devices{$file} if refaddr $self == refaddr $devices{$file}->{self};
-    }
-}
-
-sub _debug {
-    my ($self) = @_;
-
-    printf "master:\n";
-    printf "    length: %d\n", length $$self->{master_buffer},
-    printf "       pos: %d\n", tell $$self->{master},
-    printf "  contents: %-30s\n", $$self->{master_buffer};
-
-    printf "slave:\n";
-    printf "    length: %d\n", length $$self->{slave_buffer},
-    printf "       pos: %d\n", tell $$self->{slave},
-    printf "  contents: %-30s\n", $$self->{slave_buffer};
+    delete $devices{$_} for @{$$self->{files}};
 }
 
 # type something on the keyboard
 sub put {
     my ($self, @stuff) = @_;
     map { s/(?:\r\n|\n\r|\r)/\n/g } @stuff;
-    $$self->{slave_buffer} .= $_ for @stuff;
-    $$self->{master_buffer} .= $_ for @stuff;   # local echo XXX enabled/disable via Term::ReadKey
+    my $handle = $$self->{write_handle};
+    print {$$self->{write_handle}} @stuff;
 }
 
 # read from the screen
 sub get {
     my ($self) = @_;
-    return $$self->{master}->getc;
+    return $$self->{read_handle}->getc;
 }
 
 # read a whole line from the screen
 sub getline {
     my ($self) = @_;
-    my $handle = $$self->{master};
+    my $handle = $$self->{read_handle};
     my $line = <$handle>;
     return if not defined $line;
     $line =~ s/(?:\r\n|\n\r|\r)/\n/g;
