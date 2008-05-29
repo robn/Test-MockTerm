@@ -226,7 +226,7 @@ use Carp;
 sub TIEHANDLE {
     my ($class, $device) = @_;
 
-    croak "no device hash provided" if not $device;
+    croak "no device hashref provided" if not $device;
 
     my $buffer = '';
     open my $handle, "+<", \$buffer;
@@ -234,6 +234,7 @@ sub TIEHANDLE {
     my $self = bless {
         buffer => $buffer,
         handle => $handle,
+        device => $device,
     }, $class;
 
     return $self;
@@ -251,7 +252,7 @@ use base qw(Tie::Handle);
 sub TIEHANDLE {
     my ($class, $device) = @_;
 
-    croak "no device hash provided" if not $device;
+    croak "no device hashref provided" if not $device;
 
     my $buffer = '';
     open my $handle, "+<", \$buffer;
@@ -259,6 +260,7 @@ sub TIEHANDLE {
     my $self = bless {
         buffer => $buffer,
         handle => $handle,
+        device => $device,
     }, $class;
 
     return $self;
