@@ -19,4 +19,4 @@ is($slave, $mock->slave, "open returned the slave handle");
 undef $mock;
 
 open $slave, "<", $0;
-ok(!defined(tied *$slave), "open returned a regular filehandle");
+ok(!defined(tied *$slave), "open after mockterm object destruction returned a regular filehandle");
