@@ -17,7 +17,7 @@ our %bound;
 sub import {
 
     # override the system open so we can intercept stuff
-    *CORE::GLOBAL::open = sub {
+    *CORE::GLOBAL::open = sub (*;$@) {
 
         # first figure out what they're trying to do
         my ($mode, $file);
