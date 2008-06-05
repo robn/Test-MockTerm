@@ -27,3 +27,8 @@ $data = "wibble\n";
 print $slave $data;
 $r = <$master>;
 is($r, $data, "stuff written to slave appears on master");
+
+undef $mock;
+
+ok(!defined(tied *$master), "master not tied after mockterm object destruction");
+ok(!defined(tied *$slave), "slave not tied after mockterm object destruction");

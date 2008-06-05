@@ -8,7 +8,7 @@ use warnings;
 use strict;
 
 use Symbol ();
-use Scalar::Util qw(refaddr);
+use Scalar::Util qw(refaddr weaken);
 use Carp;
 use Tie::Handle;
 
@@ -142,13 +142,19 @@ sub slave {
 sub bind {
     my ($self, @files) = @_;
 
-    $bound{$_} = $self for @files;
-    $self->{files}->{$_} = 1 for @files;
+    for my $file (@files) {
+        $bound{$file} = $self;
+        weaken $bound{$file};
+
+        $self->{files}->{$file} = 1;
+    }
 }
 
 package Test::MockTerm::Master;
 
 use base qw(Tie::Handle);
+
+use Scalar::Util qw(weaken);
 
 sub TIEHANDLE {
     my ($class, $mock) = @_;
@@ -157,6 +163,7 @@ sub TIEHANDLE {
         mock   => $mock,
         buffer => '',
     }, $class;
+    weaken $self->{mock};
 
     open $self->{reader}, "<", \$self->{buffer};
 
@@ -185,6 +192,8 @@ package Test::MockTerm::Slave;
 
 use base qw(Tie::Handle);
 
+use Scalar::Util qw(weaken);
+
 sub TIEHANDLE {
     my ($class, $mock) = @_;
 
@@ -192,6 +201,7 @@ sub TIEHANDLE {
         mock   => $mock,
         buffer => '',
     }, $class;
+    weaken $self->{mock};
 
     open $self->{reader}, "<", \$self->{buffer};
 
