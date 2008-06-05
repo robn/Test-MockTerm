@@ -8,9 +8,13 @@ BEGIN {
 }
 
 my $mock = Test::MockTerm->new;
+isa_ok($mock, "Test::MockTerm", "mockterm object returned by constructor");
 
 my $master = $mock->master;
+isa_ok($master, "GLOB", "master is a filehandle");
+
 my $slave = $mock->slave;
+isa_ok($master, "GLOB", "slave is a filehandle");
 
 my ($r, $data);
 
