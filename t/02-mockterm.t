@@ -19,7 +19,7 @@ isa_ok($in, "GLOB", "read handle");
 open my ($out), ">", $dev;
 isa_ok($out, "GLOB", "write handle");
 
-#is($in, $out, "and they're the same");
+is($in, $out, "and they're the same");
 
 open my ($in2), "<", $dev;
 is($in, $in2, "opening again for read returns the same object");
@@ -40,15 +40,15 @@ undef $in2; undef $out2;
 #ok(-t $in, "read handle appears to be connected to a terminal");
 #ok(-t $out, "and so does write");
 
-$term->put("flurble\n");
+print $term "flurble\n";
 my $read = <$in>;
 is($read, "flurble\n", '"typing" stuff appears on the other end');
 
-#my $echoed = $term->getline;
-#is($echoed, "flurble\n", "and gets echoed back");
+my $echoed = <$term>;
+is($echoed, "flurble\n", "and gets echoed back");
 
 print $out "wibble\n";
-my $written = $term->getline;
+my $written = <$term>;
 is($written, "wibble\n", 'stuff written by the other end gets onto the "screen"');
 
 close $in;

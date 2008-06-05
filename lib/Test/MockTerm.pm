@@ -146,6 +146,12 @@ sub import {
 }
 
 sub new {
+    my $fh = Symbol::gensym;
+    tie *$fh, shift @_, @_;
+    return $fh;
+}
+
+sub TIEHANDLE {
     my ($class, @files) = @_;
 
     my %files = map { $_ => 1 } @files;
@@ -168,29 +174,30 @@ sub new {
 
     my $device = {
         files  => \@files,
+        buffer => '',
     };
 
-    my $buffer = '';
-    open $device->{handle}, "+<", \$buffer;
+    my $slave = Symbol::gensym;
+    tie *$slave, "Test::MockTerm::Slave", $device;
+    $device->{slave} = $slave;
 
-    $device->{handle} = Symbol::gensym();
-    tie *{$device->{handle}}, $class;
+    open my $handle, "<", \$device->{buffer};
+    $device->{handle} = $handle;
 
-    $device->{slave} = Test::MockTerm::Slave->new($device);
+    my $self = bless $device, $class;
+    $device->{self} = $self;
+    weaken $device->{self};
 
     $devices{$_} = $device for @files;
 
-    my $self = bless \$device, $class;
-
-    return $device->{handle};
+    return $self;
 }
 
 sub DESTROY {
     my ($self) = @_;
-    delete $devices{$_} for @{$$self->{files}};
-}
-
-sub TIEHANDLE {
+    delete $devices{$_} for @{$self->{files}};
+    untie *{$self->{slave}};
+    delete $self->{self};
 }
 
 # typing something
@@ -202,7 +209,7 @@ sub PRINT {
     map { s/(?:\r\n|\n\r|\r)/\n/g } @stuff;
 
     # put it onto the slave
-    print {$self->{slave}} @stuff;
+    tied(*{$self->{slave}})->{buffer} .= $_ for @stuff;
 
     # and back onto us
     # XXX unless local echo disabled
@@ -226,9 +233,11 @@ sub READLINE {
     return $line;
 }
 
+sub CLOSE { }
 
 # slave is the process (ie /dev/tty) side
-package Test::MockTerm::Slave;
+package
+    Test::MockTerm::Slave;
 
 use Tie::Handle;
 use Scalar::Util qw(weaken);
@@ -237,20 +246,21 @@ use Carp;
 use base qw(Tie::Handle);
 
 sub TIEHANDLE {
-    my ($class, $master) = @_;
+    my ($class, $device) = @_;
 
-    croak "no master device hashref provided" if not $master;
+    croak "no device hashref provided" if not $device;
 
     my $buffer = '';
-    open my $handle, "+<", \$buffer;
 
     my $self = bless {
         buffer => $buffer,
-        handle => $handle,
-        master => $master,
+        device => $device,
     }, $class;
 
-    weaken $self->{master};
+    open my $handle, "<", \$self->{buffer};
+    $self->{handle} = $handle;
+
+    weaken $self->{device};
 
     return $self;
 }
@@ -260,7 +270,7 @@ sub PRINT {
     my ($self, @stuff) = @_;
 
     # put it onto the master
-    print {$self->{master}->{handle}} @stuff;
+    $self->{device}->{buffer} .= $_ for @stuff;
 }
 
 # reading from the keyboard
@@ -273,7 +283,11 @@ sub GETC {
 sub READLINE {
     my ($self) = @_;
 
-    return $self->{handle}->getline;
+    my $handle = $self->{handle};
+    return <$handle>;
 }
+
+sub CLOSE { }
+sub FILENO { }
 
 1;
