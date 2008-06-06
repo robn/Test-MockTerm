@@ -92,6 +92,18 @@ sub import {
 
         return 1;
     };
+
+    if (exists $INC{"POSIX.pm"}) {
+        no warnings 'redefine';
+
+        eval { POSIX::isatty() };
+        my $old_isatty = \&POSIX::isatty;
+
+        *POSIX::isatty = sub {
+            return 1 if @_ == 1 && defined tied *{$_[0]} && ref(tied *{$_[0]}) =~ m/^Test::MockTerm::/;
+            goto &$old_isatty;
+        };
+    }
 }
 
 sub new {
