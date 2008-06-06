@@ -4,7 +4,7 @@ use strict;
 use Test::More qw(no_plan);
 
 BEGIN {
-    use_ok("Test::MockTerm");
+    use_ok("Test::MockTerm", qw(:open));
 }
 
 my $mock = Test::MockTerm->new;
