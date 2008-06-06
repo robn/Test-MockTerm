@@ -11,89 +11,95 @@ use Symbol ();
 use Scalar::Util qw(refaddr weaken);
 use Carp;
 use Tie::Handle;
+use POSIX ();
 
 our %bound;
 
 sub import {
+    my ($class, @opts) = @_;
+
+    my %opts = map { $_ => 1 } @opts;
 
     # override the system open so we can intercept stuff
-    *CORE::GLOBAL::open = sub (*;$@) {
+    if (exists $opts{":open"}) {
+        *CORE::GLOBAL::open = sub (*;$@) {
 
-        # first figure out what they're trying to do
-        my ($mode, $file);
+            # first figure out what they're trying to do
+            my ($mode, $file);
 
-        # three-arg form is easy
-        if (@_ == 3) {
-            $mode = $_[1];
-            $file = $_[2];
-        }
+            # three-arg form is easy
+            if (@_ == 3) {
+                $mode = $_[1];
+                $file = $_[2];
+            }
 
-        # two-arg form, just take the first character
-        elsif (@_ == 2) {
-            $mode = substr $_[1], 0, 1;
-            $file = substr $_[1], 1;
-        }
+            # two-arg form, just take the first character
+            elsif (@_ == 2) {
+                $mode = substr $_[1], 0, 1;
+                $file = substr $_[1], 1;
+            }
 
-        # magical one-arg form, sigh
-        elsif (@_ == 1) {
-            no strict "refs";
-            $mode = "<";
-            $file = ${$_[0]};
-        }
+            # magical one-arg form, sigh
+            elsif (@_ == 1) {
+                no strict "refs";
+                $mode = "<";
+                $file = ${$_[0]};
+            }
 
-        # if we couldn't extract a filename, or we're not interested in that
-        # file, just pass it through to the normal open
-        if (not $file or not exists $bound{$file}) {
+            # if we couldn't extract a filename, or we're not interested in that
+            # file, just pass it through to the normal open
+            if (not $file or not exists $bound{$file}) {
 
-            # first arg can be a symbol
+                # first arg can be a symbol
+                if (defined $_[0]) {
+
+                    # since they're bouncing through us, open will get the caller
+                    # wrong unless we qualify the handle name
+                    my $handle = Symbol::qualify($_[0], (caller)[0]);
+
+                    no strict "refs";
+                    if    (@_ == 1) { return CORE::open $handle }
+                    elsif (@_ == 2) { return CORE::open $handle, $_[1] }
+                    else            { return CORE::open $handle, $_[1], @_[2..$#_] }
+                }
+
+                # or a scalar
+                else {
+                    if    (@_ == 1) { return CORE::open $_[0] }
+                    elsif (@_ == 2) { return CORE::open $_[0], $_[1] }
+                    else            { return CORE::open $_[0], $_[1], @_[2..$#_] }
+                }
+            }
+
+            # so we're handling this file. if they're trying to do something other
+            # than just read or write, then we're confused
+            if ($mode ne "<" and $mode ne ">") {
+                croak "no support for mode '$mode' for $file";
+            }
+
+            # send the slave back
+            my $handle = $bound{$file}->slave;
+
+            # they passed a plain globby symboly thing
             if (defined $_[0]) {
 
-                # since they're bouncing through us, open will get the caller
-                # wrong unless we qualify the handle name
-                my $handle = Symbol::qualify($_[0], (caller)[0]);
+                # see above
+                my $glob = Symbol::qualify($_[0], (caller)[0]);
 
                 no strict "refs";
-                if    (@_ == 1) { return CORE::open $handle }
-                elsif (@_ == 2) { return CORE::open $handle, $_[1] }
-                else            { return CORE::open $handle, $_[1], @_[2..$#_] }
+                *{$glob} = $handle;
             }
 
-            # or a scalar
+            # otherwise its a just a scalar, and we can trample it
             else {
-                if    (@_ == 1) { return CORE::open $_[0] }
-                elsif (@_ == 2) { return CORE::open $_[0], $_[1] }
-                else            { return CORE::open $_[0], $_[1], @_[2..$#_] }
+                $_[0] = $handle;
             }
-        }
 
-        # so we're handling this file. if they're trying to do something other
-        # than just read or write, then we're confused
-        if ($mode ne "<" and $mode ne ">") {
-            croak "no support for mode '$mode' for $file";
-        }
+            return 1;
+        };
+    }
 
-        # send the slave back
-        my $handle = $bound{$file}->slave;
-
-        # they passed a plain globby symboly thing
-        if (defined $_[0]) {
-
-            # see above
-            my $glob = Symbol::qualify($_[0], (caller)[0]);
-
-            no strict "refs";
-            *{$glob} = $handle;
-        }
-
-        # otherwise its a just a scalar, and we can trample it
-        else {
-            $_[0] = $handle;
-        }
-
-        return 1;
-    };
-
-    if (exists $INC{"POSIX.pm"}) {
+    if (exists $opts{":isatty"}) {
         no warnings 'redefine';
         no strict 'refs';
 
