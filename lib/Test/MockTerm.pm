@@ -200,6 +200,8 @@ sub READLINE {
     return <$reader>;
 }
 
+sub UNTIE {}
+
 package Test::MockTerm::Slave;
 
 use base qw(Tie::Handle);
@@ -237,5 +239,7 @@ sub READLINE {
     my $reader = $self->{reader};
     return <$reader>;
 }
+
+sub UNTIE {}
 
 1;
