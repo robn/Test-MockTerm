@@ -95,6 +95,7 @@ sub import {
 
     if (exists $INC{"POSIX.pm"}) {
         no warnings 'redefine';
+        no strict 'refs';
 
         eval { POSIX::isatty() };
         my $old_isatty = \&POSIX::isatty;
@@ -103,6 +104,10 @@ sub import {
             return 1 if @_ == 1 && defined tied *{$_[0]} && ref(tied *{$_[0]}) =~ m/^Test::MockTerm::/;
             goto &$old_isatty;
         };
+
+        if (\&{(caller)[0]."::isatty"} == $old_isatty) {
+            *{(caller)[0]."::isatty"} = \&POSIX::isatty;
+        }
     }
 }
 
