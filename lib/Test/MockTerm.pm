@@ -216,6 +216,10 @@ sub PRINT {
     my ($self, @stuff) = @_;
 
     tied(*{$self->{mock}->{slave}})->{buffer} .= $_ for @stuff;
+
+    if ($self->{mock}->{mode} eq "normal") {
+        $self->{buffer} .= $_ for @stuff;
+    }
 }
 
 sub GETC {
