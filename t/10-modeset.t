@@ -7,8 +7,6 @@ use Test::Exception;
 use Test::MockTerm;
 
 my $mock = Test::MockTerm->new;
-my $master = $mock->master;
-my $slave = $mock->slave;
 
 is($mock->mode, "normal", "term starts in normal (cooked) mode");
 
@@ -42,23 +40,3 @@ is($mock->mode, "ultra-raw", "setting mode 5 sets ultra-raw mode");
 throws_ok { $mock->mode("cheese") } qr/unknown mode/, "attempt to set bogus mode name fails";
 throws_ok { $mock->mode(6) } qr/unknown mode/, "attempt to set undefined mode number fails";
 throws_ok { $mock->mode(-1) } qr/unknown mode/, "attempt to set negative undefined mode number fails";
-
-$mock->mode(0);
-
-my ($r, $data);
-
-$data = "flurble\n";
-print $master $data;
-$r = <$slave>;
-is($r, $data, "stuff written to master appears on slave");
-
-$r = <$master>;
-is($r, $data, "and is echoed back to me");
-
-$data = "wibble\n";
-print $slave $data;
-$r = <$master>;
-is($r, $data, "stuff written to slave appears on master");
-
-$r = <$slave>;
-ok(!$r, "but is not echoed back to me");
