@@ -16,18 +16,6 @@ isa_ok($master, "GLOB", "master is a filehandle");
 my $slave = $mock->slave;
 isa_ok($master, "GLOB", "slave is a filehandle");
 
-my ($r, $data);
-
-$data = "flurble\n";
-print $master $data;
-$r = <$slave>;
-is($r, $data, "stuff written to master appears on slave");
-
-$data = "wibble\n";
-print $slave $data;
-$r = <$master>;
-is($r, $data, "stuff written to slave appears on master");
-
 undef $mock;
 
 ok(!defined(tied *$master), "master not tied after mockterm object destruction");
