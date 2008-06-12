@@ -11,6 +11,9 @@ my $slave = $mock->slave;
 
 my ($r, $data);
 
+diag("mode: normal");
+$mock->mode("normal");
+
 $data = "flurble\n";
 print $master $data;
 $r = <$slave>;
@@ -18,6 +21,25 @@ is($r, $data, "stuff written to master appears on slave");
 
 $r = <$master>;
 is($r, $data, "and is echoed back to me");
+
+$data = "wibble\n";
+print $slave $data;
+$r = <$master>;
+is($r, $data, "stuff written to slave appears on master");
+
+$r = <$slave>;
+ok(!$r, "but is not echoed back to me");
+
+diag("mode: noecho");
+$mock->mode("noecho");
+
+$data = "flurble\n";
+print $master $data;
+$r = <$slave>;
+is($r, $data, "stuff written to master appears on slave");
+
+$r = <$master>;
+ok(!$r, "but is not echoed back to me");
 
 $data = "wibble\n";
 print $slave $data;
