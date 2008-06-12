@@ -178,7 +178,7 @@ sub mode {
 
     return $self->{mode} if @_ == 1;
 
-    croak "unknown mode '$mode'" if !grep(/^$mode$/, @modes) && (0+$mode < 0 || 0+$mode > $#modes);
+    croak "unknown mode '$mode'" if !grep(/^$mode$/, @modes) && !($mode =~ m/^\d+$/ && $mode >= 0 && $mode <= $#modes);
 
     if (grep /^$mode$/, @modes) {
         $self->{mode} = $mode;

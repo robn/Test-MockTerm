@@ -39,6 +39,10 @@ is($mock->mode, "raw", "setting mode 4 sets raw mode");
 $mock->mode(5);
 is($mock->mode, "ultra-raw", "setting mode 5 sets ultra-raw mode");
 
+throws_ok { $mock->mode("cheese") } qr/unknown mode/, "attempt to set bogus mode name fails";
+throws_ok { $mock->mode(6) } qr/unknown mode/, "attempt to set undefined mode number fails";
+throws_ok { $mock->mode(-1) } qr/unknown mode/, "attempt to set negative undefined mode number fails";
+
 =pod
 my ($r, $data);
 
