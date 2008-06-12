@@ -129,6 +129,8 @@ sub new {
 
     $self->{files} = { };
 
+    $self->{mode} = "normal";
+
     return $self;
 }
 
@@ -167,6 +169,27 @@ sub bind {
 
         $self->{files}->{$file} = 1;
     }
+}
+
+my @modes = qw(restore normal noecho cbreak raw ultra-raw);
+
+sub mode {
+    my ($self, $mode) = @_;
+
+    return $self->{mode} if @_ == 1;
+
+    croak "unknown mode '$mode'" if !grep(/^$mode$/, @modes) && (0+$mode < 0 || 0+$mode > $#modes);
+
+    if (grep /^$mode$/, @modes) {
+        $self->{mode} = $mode;
+    }
+    else {
+        $self->{mode} = $modes[$mode];
+    }
+
+    $self->{mode} = "normal" if $self->{mode} eq "restore";
+
+    return $self->{mode};
 }
 
 package Test::MockTerm::Master;
