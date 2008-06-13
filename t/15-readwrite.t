@@ -62,3 +62,15 @@ is($r, $data, "stuff written to slave appears on master");
 
 $r = <$slave>;
 ok(!$r, "but is not echoed back to me");
+
+diag("mode: cbreak");
+$mock->mode("cbreak");
+
+$data = "flurble";
+print $master $data;
+$r = <$slave>;
+is($r, $data, "stuff written to master appears on slave immediately");
+
+$r = <$master>;
+ok(!$r, "but is not echoed back to me");
+
