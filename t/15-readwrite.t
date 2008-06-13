@@ -74,3 +74,10 @@ is($r, $data, "stuff written to master appears on slave immediately");
 $r = <$master>;
 ok(!$r, "but is not echoed back to me");
 
+$data = "wibble\n";
+print $slave $data;
+$r = <$master>;
+is($r, $data, "stuff written to slave appears on master");
+
+$r = <$slave>;
+ok(!$r, "but is not echoed back to me");
