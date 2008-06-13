@@ -216,14 +216,19 @@ sub TIEHANDLE {
 sub PRINT {
     my ($self, @stuff) = @_;
 
-    for my $stuff (@stuff) {
-        for my $char (split '', $stuff) {
-            $self->{input} .= $char;
-            if ($char eq "\n") {
-                tied(*{$self->{mock}->{slave}})->{buffer} .= $self->{input};
-                $self->{input} = '';
+    if ($self->{mock}->{mode} eq "normal" || $self->{mock}->{mode} eq "noecho") {
+        for my $stuff (@stuff) {
+            for my $char (split '', $stuff) {
+                $self->{input} .= $char;
+                if ($char eq "\n") {
+                    tied(*{$self->{mock}->{slave}})->{buffer} .= $self->{input};
+                    $self->{input} = '';
+                }
             }
         }
+    }
+    else {
+        tied(*{$self->{mock}->{slave}})->{buffer} .= $_ for @stuff;
     }
 
     if ($self->{mock}->{mode} eq "normal") {
