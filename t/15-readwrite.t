@@ -30,6 +30,20 @@ is($r, $data, "stuff written to slave appears on master");
 $r = <$slave>;
 ok(!$r, "but is not echoed back to me");
 
+$data = "burble";
+print $master $data;
+$r = <$slave>;
+ok(!$r, "incomplete lines written to master don't appear on the slave");
+
+$r = <$master>;
+is($r, $data, "but get echoed back to me");
+
+print $master "\n";
+$r = <$slave>;
+is($r, "$data\n", "sending newline flushes the buffer");
+
+<$master>;  # clear the input buffer
+
 diag("mode: noecho");
 $mock->mode("noecho");
 

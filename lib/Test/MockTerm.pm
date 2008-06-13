@@ -204,6 +204,7 @@ sub TIEHANDLE {
     my $self = bless {
         mock   => $mock,
         buffer => '',
+        input  => '',
     }, $class;
     weaken $self->{mock};
 
@@ -215,7 +216,15 @@ sub TIEHANDLE {
 sub PRINT {
     my ($self, @stuff) = @_;
 
-    tied(*{$self->{mock}->{slave}})->{buffer} .= $_ for @stuff;
+    for my $stuff (@stuff) {
+        for my $char (split '', $stuff) {
+            $self->{input} .= $char;
+            if ($char eq "\n") {
+                tied(*{$self->{mock}->{slave}})->{buffer} .= $self->{input};
+                $self->{input} = '';
+            }
+        }
+    }
 
     if ($self->{mock}->{mode} eq "normal") {
         $self->{buffer} .= $_ for @stuff;
